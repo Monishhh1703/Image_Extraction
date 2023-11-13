@@ -1,0 +1,54 @@
+import fitz  # PyMuPDF library
+from PyPDF2 import PdfWriter, PdfReader
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+import tempfile
+
+def extract_images_to_pdf(pdf_file_path, output_pdf_path):
+    # Open the input PDF file
+    pdf_document = fitz.open(pdf_file_path)
+
+    # Create a new PDF writer for the output PDF
+    pdf_writer = PdfWriter()
+
+    for page_number in range(len(pdf_document)):
+        page = pdf_document[page_number]
+
+        # Get the list of images on the page
+        image_list = page.get_images(full=True)
+
+        for img_index, img in enumerate(image_list):
+            xref = img[0]
+            base_image = pdf_document.extract_image(xref)
+
+            # Get the image data and format
+            image_data = base_image["image"]
+
+            # Create a temporary image file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_image:
+                temp_image.write(image_data)
+
+            # Create a new PDF page for each image
+            pdf_buffer = BytesIO()
+            pdf_canvas = canvas.Canvas(pdf_buffer, pagesize=letter)
+            pdf_canvas.drawImage(temp_image.name, x=0, y=0, width=letter[0], height=letter[1])
+            pdf_canvas.save()
+            pdf_buffer.seek(0)
+
+            # Merge the image page into the output PDF
+            image_page = PdfReader(pdf_buffer)
+            output_page = image_page.pages[0] 
+            pdf_writer.add_page(output_page)
+
+    # Save the output PDF with extracted images
+    with open(output_pdf_path, "wb") as output_pdf_file:
+        pdf_writer.write(output_pdf_file)
+
+    # Close the input PDF document
+    pdf_document.close()
+
+if __name__ == "__main__":
+    input_pdf_path ="C:\\Users\\asus\\Desktop\\sample.pdf"  
+    output_pdf_path = "C:\\Users\\asus\\Desktop\\bnmit id card.pdf" 
+    extract_images_to_pdf(input_pdf_path, output_pdf_path)
